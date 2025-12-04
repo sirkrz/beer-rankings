@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Beer Ranking App</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #111; color: #eee; }
+    h1, h2 { color: #ffcc33; }
+    input, button, select { padding: 10px; border-radius: 8px; border: none; font-size: 15px; }
+    button { background: #ffcc33; color: #000; cursor: pointer; }
+    button:hover { opacity: 0.8; }
+    .beer-entry { margin: 15px 0; padding: 10px; background: #222; border-radius: 10px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; background: #222; color: #eee; }
+    th, td { border: 1px solid #444; padding: 10px; text-align: center; }
+    .stars span { font-size: 22px; cursor: pointer; }
+    .stars .active { color: gold; }
+  </style>
+</head>
+<body>
+  <h1>Beer Ranking App 🍺</h1>
+
+  <h2>Add Beers</h2>
+  <input id="beerName" placeholder="Beer name" />
+  <button onclick="addBeer()">Add Beer</button>
+
+  <h2>Current Beers</h2>
+  <ul id="beerList"></ul>
+
+  <h2>Rate Beers</h2>
+  <div id="ratingSection"></div>
+
+  <h2>Results</h2>
+  <button onclick="exportResults()">Export CSV</button>
+
+  <table>
+    <thead>
+      <tr><th>Beer</th><th>Average Rating</th></tr>
+    </thead>
+    <tbody id="resultsTable"></tbody>
+  </table>
+
+<script>
+  const beers = []; // { name, ratings: [] }
+
+  function addBeer() {
+    const name = document.getElementById("beerName").value.trim();
+    if (!name) return;
+    beers.push({ name, ratings: [] });
+    document.getElementById("beerName").value = "";
+    renderBeers();
+    renderRatings();
+    updateResults();
+  }
+
+  function renderBeers() {
+    document.getElementById("beerList").innerHTML = beers.map(b => `<li>${b.name}</li>`).join("");
+  }
+
+  function renderRatings() {
+    const div = document.getElementById("ratingSection");
+    div.innerHTML = beers.map((b, i) => `
+      <div class='beer-entry'>
+        <strong>${b.name}</strong><br>
+        <div class="stars" id="stars-${i}">
+          ${[1,2,3,4,5].map(n => `<span onclick="rate(${i}, ${n})">★</span>`).join("")}
+        </div>
+      </div>`).join("");
+  }
+
+  function rate(index, stars) {
+    beers[index].ratings.push(stars);
+    highlightStars(index, stars);
+    updateResults();
+  }
+
+  function highlightStars(index, count) {
+    const spans = document.querySelectorAll(`#stars-${index} span`);
+    spans.forEach((s, i) => {
+      s.classList.toggle("active", i < count);
+    });
+  }
+
+  function updateResults() {
+    const table = document.getElementById("resultsTable");
+    table.innerHTML = beers.map(b => {
+      const avg = b.ratings.length ? (b.ratings.reduce((a,c)=>a+c,0)/b.ratings.length).toFixed(2) : "—";
+      return `<tr><td>${b.name}</td><td>${avg}</td></tr>`;
+    }).join("");
+  }
+
+  function exportResults() {
+    let csv = "Beer,Average Rating
+";
+    beers.forEach(b => {
+      const avg = b.ratings.length ? (b.ratings.reduce((a,c)=>a+c,0)/b.ratings.length).toFixed(2) : "";
+      csv += `${b.name},${avg}
+`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = "beer_ratings.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+</script>
+
+</body>
+</html>
