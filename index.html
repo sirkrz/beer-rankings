@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Beer Ranking App</title>
+  <title>Beer Ranking App (Sessions Enabled)</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; background: #111; color: #eee; }
     h1, h2 { color: #ffcc33; }
@@ -15,10 +15,19 @@
     th, td { border: 1px solid #444; padding: 10px; text-align: center; }
     .stars span { font-size: 22px; cursor: pointer; }
     .stars .active { color: gold; }
+    .session-box { background:#222; padding:15px; border-radius:10px; margin-bottom:20px; }
   </style>
 </head>
 <body>
-  <h1>Beer Ranking App 🍺</h1>
+  <h1>Beer Ranking App 🍺 (with Sessions)</h1>
+
+  <div class="session-box">
+    <h2>Session Manager</h2>
+    <select id="sessionSelect" onchange="loadSession()"></select>
+    <br><br>
+    <input id="newSessionName" placeholder="New session name (e.g., Beer Night 2025)" />
+    <button onclick="createSession()">Create Session</button>
+  </div>
 
   <h2>Add Beers</h2>
   <input id="beerName" placeholder="Beer name" />
@@ -41,47 +50,78 @@
   </table>
 
 <script>
-  const beers = []; // { name, ratings: [] }
+  const STORAGE_KEY = "beerSessions";
+  let sessions = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+  let currentSession = null;
 
-  function addBeer() {
-    const name = document.getElementById("beerName").value.trim();
-    if (!name) return;
-    beers.push({ name, ratings: [] });
-    document.getElementById("beerName").value = "";
+  function saveSessions() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+  }
+
+  function populateSessionDropdown() {
+    const sel = document.getElementById("sessionSelect");
+    sel.innerHTML = Object.keys(sessions).map(s => `<option value="${s}">${s}</option>`).join("");
+    if (currentSession && sessions[currentSession]) sel.value = currentSession;
+  }
+
+  function createSession() {
+    const name = document.getElementById("newSessionName").value.trim();
+    if (!name || sessions[name]) return;
+    sessions[name] = { beers: [] };
+    currentSession = name;
+    saveSessions();
+    populateSessionDropdown();
+    loadSession();
+    document.getElementById("newSessionName").value = "";
+  }
+
+  function loadSession() {
+    currentSession = document.getElementById("sessionSelect").value;
     renderBeers();
     renderRatings();
     updateResults();
   }
 
+  function addBeer() {
+    const name = document.getElementById("beerName").value.trim();
+    if (!name) return;
+    sessions[currentSession].beers.push({ name, ratings: [] });
+    saveSessions();
+    document.getElementById("beerName").value = "";
+    loadSession();
+  }
+
   function renderBeers() {
+    const beers = sessions[currentSession].beers;
     document.getElementById("beerList").innerHTML = beers.map(b => `<li>${b.name}</li>`).join("");
   }
 
   function renderRatings() {
+    const beers = sessions[currentSession].beers;
     const div = document.getElementById("ratingSection");
     div.innerHTML = beers.map((b, i) => `
       <div class='beer-entry'>
         <strong>${b.name}</strong><br>
         <div class="stars" id="stars-${i}">
-          ${[1,2,3,4,5].map(n => `<span onclick="rate(${i}, ${n})">★</span>`).join("")}
+          ${[1,2,3,4,5].map(n => `<span onclick=\"rate(${i}, ${n})\">★</span>`).join("")}
         </div>
       </div>`).join("");
   }
 
   function rate(index, stars) {
-    beers[index].ratings.push(stars);
+    sessions[currentSession].beers[index].ratings.push(stars);
+    saveSessions();
     highlightStars(index, stars);
     updateResults();
   }
 
   function highlightStars(index, count) {
     const spans = document.querySelectorAll(`#stars-${index} span`);
-    spans.forEach((s, i) => {
-      s.classList.toggle("active", i < count);
-    });
+    spans.forEach((s, i) => s.classList.toggle("active", i < count));
   }
 
   function updateResults() {
+    const beers = sessions[currentSession].beers;
     const table = document.getElementById("resultsTable");
     table.innerHTML = beers.map(b => {
       const avg = b.ratings.length ? (b.ratings.reduce((a,c)=>a+c,0)/b.ratings.length).toFixed(2) : "—";
@@ -90,22 +130,27 @@
   }
 
   function exportResults() {
-    let csv = "Beer,Average Rating
-";
+    const beers = sessions[currentSession].beers;
+    let csv = "Beer,Average Rating\n";
     beers.forEach(b => {
       const avg = b.ratings.length ? (b.ratings.reduce((a,c)=>a+c,0)/b.ratings.length).toFixed(2) : "";
-      csv += `${b.name},${avg}
-`;
+      csv += `${b.name},${avg}\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = "beer_ratings.csv";
+    a.download = `${currentSession.replace(/\s+/g,'_')}_ratings.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  }
+
+  populateSessionDropdown();
+  if (Object.keys(sessions).length > 0) {
+    currentSession = Object.keys(sessions)[0];
+    loadSession();
   }
 </script>
 
