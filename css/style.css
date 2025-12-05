@@ -1,0 +1,70 @@
+/* style.css - main styling for Beer Ranking App */
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background: #fafafa;
+    color: #222;
+}
+
+.dark-mode {
+    background: #111;
+    color: #eee;
+}
+
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background: #ffcc33;
+    color: #000;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+button {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    background: #ffcc33;
+    cursor: pointer;
+    font-size: 15px;
+}
+
+    button:hover {
+        opacity: 0.8;
+    }
+
+section {
+    padding: 20px;
+}
+
+.beer-card {
+    background: #fff;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.dark-mode .beer-card {
+    background: #222;
+    color: #eee;
+}
+
+.star {
+    font-size: 24px;
+    cursor: pointer;
+    color: #bbb;
+}
+
+    .star.active {
+        color: gold;
+    }
+
+img.beer-photo {
+    max-width: 120px;
+    border-radius: 8px;
+    margin-top: 10px;
+}
