@@ -3,7 +3,72 @@
 <head>
     <meta charset="UTF-8" />
     <title>Beer Ranking App</title>
-    <link rel="stylesheet" href="css/style.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #111;
+            color: #eee;
+        }
+
+        h1, h2 {
+            color: #ffcc33;
+        }
+
+        input, button, select {
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            font-size: 15px;
+        }
+
+        button {
+            background: #ffcc33;
+            color: #000;
+            cursor: pointer;
+        }
+
+            button:hover {
+                opacity: 0.8;
+            }
+
+        .beer-entry {
+            margin: 15px 0;
+            padding: 10px;
+            background: #222;
+            border-radius: 10px;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+            background: #222;
+            color: #eee;
+        }
+
+        th, td {
+            border: 1px solid #444;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .stars span {
+            font-size: 22px;
+            cursor: pointer;
+        }
+
+        .stars .active {
+            color: gold;
+        }
+
+        .session-box {
+            background: #222;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+    </style>
 
 
     <!-- Firebase Initialization -->
@@ -19,110 +84,128 @@
     <script type="module" src="js/ui.js"></script>
 </head>
 <body>
-    <h1>Beer Ranking App 🍺</h1>
+    <h1>Beer Ranking App 🍺 (Advanced + Sync)</h1>
 
-    <h2>Create / Select Session</h2>
-    <input id="sessionName" placeholder="Session name (e.g., 2025-03-18)" />
-    <button onclick="createSession()">Create Session</button>
 
-    <select id="sessionSelect"></select>
-    <button onclick="loadSession()">Load Session</button>
+    <div class="session-box">
+        <h2>Session Manager</h2>
+        <select id="sessionSelect"></select>
+        <button onclick="deleteSession()">Delete Session</button><br><br>
+        <input id="newSessionName" placeholder="New session name" />
+        <button onclick="createSession()">Create Session</button>
+    </div>
+
 
     <h2>Add Beer</h2>
     <input id="beerName" placeholder="Beer name" />
+    <input id="beerPhoto" type="file" accept="image/*" />
     <button onclick="addBeer()">Add Beer</button>
 
-    <h2>Beers</h2>
-    <ul id="beerList"></ul>
+
+    <h2>Current Beers</h2>
+    <div id="beerList"></div>
+
 
     <h2>Rate Beers</h2>
     <div id="ratingSection"></div>
 
-    <h2>Ratings Chart</h2>
-    <canvas id="ratingsChart" width="400" height="200"></canvas>
+
+    <h2>Charts</h2>
+    <canvas id="ratingChart"></canvas>
+
 
     <h2>Results</h2>
+    <button onclick="exportCSV()">Export CSV</button>
     <table>
-        <thead><tr><th>Beer</th><th>Average Rating</th></tr></thead>
+        <thead><tr><th>Beer</th><th>Average</th></tr></thead>
         <tbody id="resultsTable"></tbody>
     </table>
-
-    <script type="module" src="firebase.js"></script>
-    <script type="module" src="main.js"></script>
 </body>
 </html>
 <script>
-    const beers = []; // { name, ratings: [] }
-
-
-    function addBeer() {
-        const name = document.getElementById("beerName").value.trim();
-        if (!name) return;
-        beers.push({ name, ratings: [] });
-        document.getElementById("beerName").value = "";
-        renderBeers();
-        renderRatings();
-        updateResults();
-    }
-
-
-    function renderBeers() {
-        document.getElementById("beerList").innerHTML = beers.map(b => `<li>${b.name}</li>`).join("");
-    }
-
-
-    function renderRatings() {
-        const div = document.getElementById("ratingSection");
-        div.innerHTML = beers.map((b, i) => `
+    let currentSession = null;
+    const div = document.getElementById('beerList');
+    div.innerHTML = Object.entries(beers).map(([name, b]) => `
 <div class='beer-entry'>
-<strong>${b.name}</strong><br>
-<div class="stars" id="stars-${i}">
-${[1, 2, 3, 4, 5].map(n => `<span onclick="rate(${i}, ${n})">★</span>`).join("")}
+<strong>${name}</strong><br>
+${b.photo ? `<img src="${b.photo}">` : ''}<br>
+<button onclick="deleteBeer('${name}')">Delete</button>
 </div>
-</div>`).join("");
+`).join('');
+}
+
+
+    function deleteBeer(name) {
+        db.ref(`sessions/${currentSession}/beers/${name}`).remove();
     }
 
 
-    function rate(index, stars) {
-        beers[index].ratings.push(stars);
-        highlightStars(index, stars);
-        updateResults();
+    function renderRatings(beers) {
+        const div = document.getElementById('ratingSection');
+        div.innerHTML = Object.entries(beers).map(([name, b]) => `
+<div class='beer-entry'>
+<strong>${name}</strong><br>
+<div class="stars">
+${[1, 2, 3, 4, 5].map(n => `<span onclick=\"rate('${name}',${n})\">★</span>`).join('')}
+</div>
+<textarea placeholder="Comment" id="comment-${name}"></textarea>
+</div>
+`).join('');
     }
 
 
-    function highlightStars(index, count) {
-        const spans = document.querySelectorAll(`#stars-${index} span`);
-        spans.forEach((s, i) => {
-            s.classList.toggle("active", i < count);
+    function rate(name, stars) {
+        const comment = document.getElementById(`comment-${name}`).value;
+        const user = "user_" + Math.random().toString(36).substring(2, 8);
+        db.ref(`sessions/${currentSession}/beers/${name}/ratings/${user}`).set({ stars, comment });
+    }
+
+
+    function updateResults(beers) {
+        const table = document.getElementById('resultsTable');
+        table.innerHTML = Object.entries(beers).map(([name, b]) => {
+            const vals = Object.values(b.ratings || {}).map(r => r.stars);
+            const avg = vals.length ? (vals.reduce((a, c) => a + c, 0) / vals.length).toFixed(2) : '—';
+            return `<tr><td>${name}</td><td>${avg}</td></tr>`;
+        }).join('');
+    }
+
+
+    function exportCSV() {
+        db.ref(`sessions/${currentSession}/beers`).once('value', snap => {
+            const beers = snap.val() || {};
+            let csv = "Beer,Average\n";
+            Object.entries(beers).forEach(([name, b]) => {
+                const vals = Object.values(b.ratings || {}).map(r => r.stars);
+                const avg = vals.length ? (vals.reduce((a, c) => a + c, 0) / vals.length).toFixed(2) : '';
+                csv += `${name},${avg}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = currentSession + '_ratings.csv';
+            a.click();
         });
     }
 
 
-    function updateResults() {
-        const table = document.getElementById("resultsTable");
-        table.innerHTML = beers.map(b => {
-            const avg = b.ratings.length ? (b.ratings.reduce((a, c) => a + c, 0) / b.ratings.length).toFixed(2) : "—";
-            return `<tr><td>${b.name}</td><td>${avg}</td></tr>`;
-        }).join("");
-    }
-
-
-    function exportResults() {
-        let csv = "Beer,Average Rating"
-        beers.forEach(b => {
-            const avg = b.ratings.length ? (b.ratings.reduce((a, c) => a + c, 0) / b.ratings.length).toFixed(2) : "";
-            csv += `${b.name},${avg}
-`;
+    function updateChart(beers) {
+        const labels = Object.keys(beers);
+        const data = labels.map(name => {
+            const vals = Object.values(beers[name].ratings || {}).map(r => r.stars);
+            return vals.length ? vals.reduce((a, c) => a + c, 0) / vals.length : 0;
         });
 
 
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = "beer_ratings.csv";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        const ctx = document.getElementById('ratingChart');
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+            type: 'bar',
+            data: { labels, datasets: [{ label: 'Average Rating', data }] },
+            options: { scales: { y: { beginAtZero: true, max: 5 } } }
+        });
     }
+
+
+    loadSessions();
 </script>
