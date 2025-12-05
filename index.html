@@ -108,8 +108,7 @@ ${[1, 2, 3, 4, 5].map(n => `<span onclick="rate(${i}, ${n})">★</span>`).join("
 
 
     function exportResults() {
-        let csv = "Beer,Average Rating
-        ";
+        let csv = "Beer,Average Rating"
         beers.forEach(b => {
             const avg = b.ratings.length ? (b.ratings.reduce((a, c) => a + c, 0) / b.ratings.length).toFixed(2) : "";
             csv += `${b.name},${avg}
