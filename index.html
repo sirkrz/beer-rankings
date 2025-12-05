@@ -190,15 +190,88 @@
         function renderBeers(beers) {
             const div = document.getElementById('beerList');
             div.innerHTML = Object.entries(beers).map(([name, b]) => `
-        <div class='beer-entry'>
-            <strong>${name}</strong><br>
-            ${b.photo ? `<img src="${b.photo}">` : ''}<br>
-            <button onclick="deleteBeer('${name}')">Delete</button>
-        </div>
-        `).join('');
+            <div class='beer-entry'>
+                <strong>${name}</strong><br>
+                ${b.photo ? `<img src="${b.photo}">` : ''}<br>
+                <button onclick="deleteBeer('${name}')">Delete</button>
+            </div>
+            `).join('');
         }
 
 
         function deleteBeer(name) {
             db.ref(`sessions/${currentSession}/beers/${name}`).remove();
-</html >
+        }
+
+
+        function renderRatings(beers) {
+            const div = document.getElementById('ratingSection');
+            div.innerHTML = Object.entries(beers).map(([name, b]) => `
+<div class='beer-entry'>
+<strong>${name}</strong><br>
+<div class="stars">
+${[1, 2, 3, 4, 5].map(n => `<span onclick=\"rate('${name}',${n})\">★</span>`).join('')}
+</div>
+<textarea placeholder="Comment" id="comment-${name}"></textarea>
+</div>
+`).join('');
+        }
+
+
+        function rate(name, stars) {
+            const comment = document.getElementById(`comment-${name}`).value;
+            const user = "user_" + Math.random().toString(36).substring(2, 8);
+            db.ref(`sessions/${currentSession}/beers/${name}/ratings/${user}`).set({ stars, comment });
+        }
+
+
+        function updateResults(beers) {
+            const table = document.getElementById('resultsTable');
+            table.innerHTML = Object.entries(beers).map(([name, b]) => {
+                const vals = Object.values(b.ratings || {}).map(r => r.stars);
+                const avg = vals.length ? (vals.reduce((a, c) => a + c, 0) / vals.length).toFixed(2) : '—';
+                return `<tr><td>${name}</td><td>${avg}</td></tr>`;
+            }).join('');
+        }
+
+
+        function exportCSV() {
+            db.ref(`sessions/${currentSession}/beers`).once('value', snap => {
+                const beers = snap.val() || {};
+                let csv = "Beer,Average\n";
+                Object.entries(beers).forEach(([name, b]) => {
+                    const vals = Object.values(b.ratings || {}).map(r => r.stars);
+                    const avg = vals.length ? (vals.reduce((a, c) => a + c, 0) / vals.length).toFixed(2) : '';
+                    csv += `${name},${avg}\n`;
+                });
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = currentSession + '_ratings.csv';
+                a.click();
+            });
+        }
+
+
+        function updateChart(beers) {
+            const labels = Object.keys(beers);
+            const data = labels.map(name => {
+                const vals = Object.values(beers[name].ratings || {}).map(r => r.stars);
+                return vals.length ? vals.reduce((a, c) => a + c, 0) / vals.length : 0;
+            });
+
+
+            const ctx = document.getElementById('ratingChart');
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets: [{ label: 'Average Rating', data }] },
+                options: { scales: { y: { beginAtZero: true, max: 5 } } }
+            });
+        }
+
+
+        loadSessions();
+    </script>
+</body>
+</html>
