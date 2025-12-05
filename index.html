@@ -120,92 +120,85 @@
         <thead><tr><th>Beer</th><th>Average</th></tr></thead>
         <tbody id="resultsTable"></tbody>
     </table>
-</body>
-</html>
-<script>
-    let currentSession = null;
-    const div = document.getElementById('beerList');
-    div.innerHTML = Object.entries(beers).map(([name, b]) => `
-<div class='beer-entry'>
-<strong>${name}</strong><br>
-${b.photo ? `<img src="${b.photo}">` : ''}<br>
-<button onclick="deleteBeer('${name}')">Delete</button>
-</div>
-`).join('');
-}
+    <script>
+        let currentSession = null;
+        let chart = null;
 
 
-    function deleteBeer(name) {
-        db.ref(`sessions/${currentSession}/beers/${name}`).remove();
-    }
-
-
-    function renderRatings(beers) {
-        const div = document.getElementById('ratingSection');
-        div.innerHTML = Object.entries(beers).map(([name, b]) => `
-<div class='beer-entry'>
-<strong>${name}</strong><br>
-<div class="stars">
-${[1, 2, 3, 4, 5].map(n => `<span onclick=\"rate('${name}',${n})\">★</span>`).join('')}
-</div>
-<textarea placeholder="Comment" id="comment-${name}"></textarea>
-</div>
-`).join('');
-    }
-
-
-    function rate(name, stars) {
-        const comment = document.getElementById(`comment-${name}`).value;
-        const user = "user_" + Math.random().toString(36).substring(2, 8);
-        db.ref(`sessions/${currentSession}/beers/${name}/ratings/${user}`).set({ stars, comment });
-    }
-
-
-    function updateResults(beers) {
-        const table = document.getElementById('resultsTable');
-        table.innerHTML = Object.entries(beers).map(([name, b]) => {
-            const vals = Object.values(b.ratings || {}).map(r => r.stars);
-            const avg = vals.length ? (vals.reduce((a, c) => a + c, 0) / vals.length).toFixed(2) : '—';
-            return `<tr><td>${name}</td><td>${avg}</td></tr>`;
-        }).join('');
-    }
-
-
-    function exportCSV() {
-        db.ref(`sessions/${currentSession}/beers`).once('value', snap => {
-            const beers = snap.val() || {};
-            let csv = "Beer,Average\n";
-            Object.entries(beers).forEach(([name, b]) => {
-                const vals = Object.values(b.ratings || {}).map(r => r.stars);
-                const avg = vals.length ? (vals.reduce((a, c) => a + c, 0) / vals.length).toFixed(2) : '';
-                csv += `${name},${avg}\n`;
+        function loadSessions() {
+            db.ref('sessions').on('value', snap => {
+                const data = snap.val() || {};
+                const sel = document.getElementById('sessionSelect');
+                sel.innerHTML = Object.keys(data).map(s => `<option>${s}</option>`).join('');
+                if (!currentSession && Object.keys(data).length) {
+                    currentSession = Object.keys(data)[0];
+                }
+                sel.value = currentSession;
+                loadSessionData();
             });
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = currentSession + '_ratings.csv';
-            a.click();
-        });
-    }
+        }
 
 
-    function updateChart(beers) {
-        const labels = Object.keys(beers);
-        const data = labels.map(name => {
-            const vals = Object.values(beers[name].ratings || {}).map(r => r.stars);
-            return vals.length ? vals.reduce((a, c) => a + c, 0) / vals.length : 0;
-        });
+        function createSession() {
+            const name = document.getElementById('newSessionName').value.trim();
+            if (!name) return;
+            db.ref('sessions/' + name).set({ beers: {} });
+            currentSession = name;
+            document.getElementById('newSessionName').value = '';
+        }
 
 
-        const ctx = document.getElementById('ratingChart');
-        if (chart) chart.destroy();
-        chart = new Chart(ctx, {
-            type: 'bar',
-            data: { labels, datasets: [{ label: 'Average Rating', data }] },
-            options: { scales: { y: { beginAtZero: true, max: 5 } } }
-        });
-    }
+        function deleteSession() {
+            if (!currentSession) return;
+            db.ref('sessions/' + currentSession).remove();
+        }
 
 
-    loadSessions();
-</script>
+        function loadSessionData() {
+            db.ref('sessions/' + currentSession + '/beers').on('value', snap => {
+                const beers = snap.val() || {};
+                renderBeers(beers);
+                renderRatings(beers);
+                updateResults(beers);
+                updateChart(beers);
+            });
+        }
+
+
+        async function addBeer() {
+            const name = document.getElementById('beerName').value.trim();
+            const file = document.getElementById('beerPhoto').files[0];
+            if (!name) return;
+
+
+            let photoURL = '';
+            if (file) {
+                const ref = storage.ref(`beer_photos/${currentSession}_${name}`);
+                await ref.put(file);
+                photoURL = await ref.getDownloadURL();
+            }
+
+
+            db.ref(`sessions/${currentSession}/beers/${name}`).set({ ratings: {}, photo: photoURL });
+
+
+            document.getElementById('beerName').value = '';
+            document.getElementById('beerPhoto').value = '';
+        }
+
+
+        function renderBeers(beers) {
+            const div = document.getElementById('beerList');
+            div.innerHTML = Object.entries(beers).map(([name, b]) => `
+        <div class='beer-entry'>
+            <strong>${name}</strong><br>
+            ${b.photo ? `<img src="${b.photo}">` : ''}<br>
+            <button onclick="deleteBeer('${name}')">Delete</button>
+        </div>
+        `).join('');
+        }
+
+
+        function deleteBeer(name) {
+            db.ref(`sessions/${currentSession}/beers/${name}`).remove();
+</html >
