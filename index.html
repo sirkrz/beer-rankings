@@ -57,6 +57,10 @@
 
 <script>
 // --- Firebase Config (replace with yours) ---
+import { initializeApp } from "firebase/app";
+import { getDatabase } from "firebase/database";
+import { getStorage } from "firebase/storage";
+
 const firebaseConfig = {
   apiKey: "AIzaSyAS52TEatDdFmQGTt4zckN1-9edFqxwsss",
   authDomain: "beerratings.firebaseapp.com",
