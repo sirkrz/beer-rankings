@@ -1,42 +1,501 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Beer Ranking App</title>
-    <link rel="stylesheet" href="style.css" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8" />
+  <title>FH2 Project & Flight Task Helper</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 20px;
+      background: #111827;
+      color: #e5e7eb;
+    }
+    h1 {
+      font-size: 1.6rem;
+      margin-bottom: 0.5rem;
+    }
+    .card {
+      background: #1f2937;
+      padding: 16px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      box-shadow: 0 10px 15px rgba(0,0,0,0.3);
+    }
+    label {
+      display: block;
+      margin: 6px 0 2px;
+      font-size: 0.9rem;
+    }
+    input, select, button {
+      font: inherit;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid #4b5563;
+      background: #111827;
+      color: #e5e7eb;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    input:focus, select:focus {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+    }
+    button {
+      margin-top: 10px;
+      background: #2563eb;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .row > div {
+      flex: 1 1 200px;
+    }
+    #output {
+      background: #020617;
+      padding: 12px;
+      border-radius: 10px;
+      white-space: pre-wrap;
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.85rem;
+      max-height: 500px;
+      overflow: auto;
+    }
+    .hidden {
+      display: none;
+    }
+    .status {
+      font-size: 0.85rem;
+      margin-top: 6px;
+      color: #a5b4fc;
+    }
+    .error {
+      color: #fca5a5;
+    }
+  </style>
 </head>
 <body>
-    <h1>Beer Ranking App 🍺</h1>
+  <h1>FH2 Project & Flight Task API Helper</h1>
 
-    <h2>Create / Select Session</h2>
-    <input id="sessionName" placeholder="Session name (e.g., 2025-03-18)" />
-    <button onclick="createSession()">Create Session</button>
+  <!-- CONFIG & AUTH -->
+  <div class="card">
+    <h2>1. API tenging</h2>
+    <div class="row">
+      <div>
+        <label for="baseUrl">API Base URL (án endingar)</label>
+        <input id="baseUrl" type="text" value="http://10.231.11.11:30812" />
+      </div>
+    </div>
+    <button id="btnLoadProjects">Load projects (GET /openapi/v0.1/project)</button>
+    <div id="projectStatus" class="status"></div>
+  </div>
 
-    <select id="sessionSelect"></select>
-    <button onclick="loadSession()">Load Session</button>
+  <!-- PROJECT SELECT + TASK QUERY -->
+  <div id="taskCard" class="card hidden">
+    <h2>2. Veldu project og sækja flight tasks</h2>
 
-    <h2>Add Beer</h2>
-    <input id="beerName" placeholder="Beer name" />
-    <button onclick="addBeer()">Add Beer</button>
+    <div class="row">
+      <div>
+        <label for="projectSelect">Project (UUID)</label>
+        <select id="projectSelect"></select>
+      </div>
+      <div>
+        <label for="deviceSn">Device SN (optional)</label>
+        <input id="deviceSn" type="text" placeholder="t.d. 1234567890ABCDEF" />
+      </div>
+    </div>
 
-    <h2>Beers</h2>
-    <ul id="beerList"></ul>
+    <!-- Tímabil frá núverandi tíma -->
+    <div class="row">
+      <div>
+        <label for="timeRange">Tímabil (frá núna aftur í tímann)</label>
+        <select id="timeRange">
+          <option value="1d">Síðasti sólahringur</option>
+          <option value="1w">Síðasta vika</option>
+          <option value="1m">Síðasti mánuður (≈ 30 dagar)</option>
+          <option value="1y">Síðasta ár (≈ 365 dagar)</option>
+        </select>
+      </div>
+    </div>
 
-    <h2>Rate Beers</h2>
-    <div id="ratingSection"></div>
+    <div class="row">
+      <div>
+        <label for="page">page</label>
+        <input id="page" type="number" value="1" min="1" />
+      </div>
+      <div>
+        <label for="pageSize">page_size</label>
+        <input id="pageSize" type="number" value="50" min="1" max="500" />
+      </div>
+    </div>
 
-    <h2>Ratings Chart</h2>
-    <canvas id="ratingsChart" width="400" height="200"></canvas>
+    <div class="row">
+      <div>
+        <label for="flightTaskStatus">flight_task_status</label>
+        <input id="flightTaskStatus" type="number" value="2" />
+      </div>
+      <div>
+        <label for="listType">list_type</label>
+        <input id="listType" type="number" value="0" />
+      </div>
+    </div>
 
-    <h2>Results</h2>
-    <table>
-        <thead><tr><th>Beer</th><th>Average Rating</th></tr></thead>
-        <tbody id="resultsTable"></tbody>
-    </table>
+    <div class="row">
+      <div>
+        <label for="source">source</label>
+        <input id="source" type="number" value="0" />
+      </div>
+      <div>
+        <label for="mediaUploadType">media_upload_type</label>
+        <input id="mediaUploadType" type="number" value="0" />
+      </div>
+    </div>
 
-    <script type="module" src="firebase.js"></script>
-    <script type="module" src="main.js"></script>
+    <div class="row">
+      <div>
+        <button id="btnLoadTasks">
+          Load flight tasks (GET /task/api/v2/workspaces/{prj_uuid}/flight-tasks)
+        </button>
+      </div>
+      <div>
+        <button id="btnExportCsv" disabled>
+          Download CSV (filtered fields)
+        </button>
+      </div>
+    </div>
+
+    <div id="taskStatus" class="status"></div>
+  </div>
+
+  <!-- OUTPUT -->
+  <div class="card">
+    <h2>3. Niðurstöður</h2>
+    <pre id="output">// API svör birtast hér...</pre>
+  </div>
+
+  <script>
+    // Fast X-User-Token (backslash þarf að vera escaped í JS)
+    const FIXED_USER_TOKEN = "eyJhbGciOiJIUzUxMiIsImNyaXQiOlsidHlwIiwiYWxnIiwia2lkIl0sImtpZCI6IjU3YmQyNmEwLTYyMDktNGE5My1hNjg4LWY4NzUyYmU1ZDE5MSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50IjoiIiwiZXhwIjoyMDc4NDA3NzE1LCJuYmYiOjE3NjI4NzQ5MTUsIm9yZ2FuaXphdGlvbl91dWlkIjoiOWFhM2M1OWMtZGZkYy00YzI2LWI4MDMtMjJlY2VmMzYxYjRkIiwicHJvamVjdF91dWlkIjoiIiwic3ViIjoiZmgyIiwidXNlcl9pZCI6IjE3NjI4NzI2NTEyMTc5MDUyMDAifQ.ZKvBLhXaxOTPDTw2PmIy4LwC2CfzhSywOQYhPck1ObW4XpxdzzhxCQ_rJKYv8H9iJu8KRIgo_6mtuoEppIstbQ";
+
+    const btnLoadProjects = document.getElementById("btnLoadProjects");
+    const projectStatus = document.getElementById("projectStatus");
+    const taskCard = document.getElementById("taskCard");
+    const projectSelect = document.getElementById("projectSelect");
+    const btnLoadTasks = document.getElementById("btnLoadTasks");
+    const btnExportCsv = document.getElementById("btnExportCsv");
+    const taskStatus = document.getElementById("taskStatus");
+    const outputEl = document.getElementById("output");
+
+    // hér geymum „filteruðu“ niðurstöðurnar fyrir CSV
+    let filteredTasks = [];
+
+    function getConfig() {
+      const baseUrl = document.getElementById("baseUrl").value.trim().replace(/\/+$/, "");
+      if (!baseUrl) {
+        throw new Error("API Base URL má ekki vera tómt.");
+      }
+      return { baseUrl };
+    }
+
+    function prettyPrint(data) {
+      try {
+        return JSON.stringify(data, null, 2);
+      } catch (e) {
+        return String(data);
+      }
+    }
+
+    // Reikna begin_at og end_at (Unix sekúndur) út frá tímabilsvali
+    function computeRangeUnix(rangeCode) {
+      const now = new Date();
+      const end = Math.floor(now.getTime() / 1000); // núna í Unix sek
+      let deltaDays = 1;
+
+      switch (rangeCode) {
+        case "1d":
+          deltaDays = 1;
+          break;
+        case "1w":
+          deltaDays = 7;
+          break;
+        case "1m":
+          deltaDays = 30;
+          break;
+        case "1y":
+          deltaDays = 365;
+          break;
+        default:
+          deltaDays = 1;
+      }
+
+      const startMs = now.getTime() - deltaDays * 24 * 60 * 60 * 1000;
+      const begin = Math.floor(startMs / 1000);
+
+      return { beginAtUnix: begin, endAtUnix: end };
+    }
+
+    // CSV hjálparföll
+    const CSV_HEADERS = [
+      "ID",
+      "take_off_airport_sn",
+      "task_name",
+      "user_id",
+      "prj_uuid",
+      "task_start_time",
+      "task_end_time",
+      "user_name"
+    ];
+
+    function csvEscape(value) {
+      const s = String(value ?? "");
+      // Escape " -> "" og setja alltaf í gæsalappir
+      const escaped = s.replace(/"/g, '""');
+      return `"${escaped}"`;
+    }
+
+    function toCsv(rows) {
+      const lines = [];
+      // hauslína
+      lines.push(CSV_HEADERS.join(","));
+      // gögn
+      rows.forEach(row => {
+        const line = CSV_HEADERS
+          .map(h => csvEscape(row[h]))
+          .join(",");
+        lines.push(line);
+      });
+      return lines.join("\r\n");
+    }
+
+    function downloadCsv() {
+      if (!filteredTasks || filteredTasks.length === 0) {
+        alert("Engar filteraðar niðurstöður til að exporta.");
+        return;
+      }
+      const csvContent = toCsv(filteredTasks);
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "flight_tasks_filtered.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    btnExportCsv.addEventListener("click", downloadCsv);
+
+    // 1. Sækja projects / UUID lista
+    btnLoadProjects.addEventListener("click", async () => {
+      projectStatus.textContent = "";
+      projectStatus.classList.remove("error");
+      taskStatus.textContent = "";
+      taskStatus.classList.remove("error");
+      outputEl.textContent = "// Sæki projects...";
+      taskCard.classList.add("hidden");
+      projectSelect.innerHTML = "";
+      btnExportCsv.disabled = true;
+      filteredTasks = [];
+
+      let config;
+      try {
+        config = getConfig();
+      } catch (err) {
+        projectStatus.textContent = err.message;
+        projectStatus.classList.add("error");
+        outputEl.textContent = "// Villa: " + err.message;
+        return;
+      }
+
+      const url = config.baseUrl + "/openapi/v0.1/project";
+
+      try {
+        projectStatus.textContent = "Sending GET " + url;
+        const res = await fetch(url, {
+          method: "GET",
+          headers: {
+            "X-User-Token": FIXED_USER_TOKEN,
+            "X-Language": "en"
+          }
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          projectStatus.textContent = "Villa frá server: " + res.status + " " + res.statusText;
+          projectStatus.classList.add("error");
+          outputEl.textContent = text || ("// HTTP " + res.status);
+          return;
+        }
+
+        const data = await res.json();
+        outputEl.textContent = prettyPrint(data);
+
+        // Hjá þér: projects eru í data.data.list
+        let projects = [];
+        if (data && data.data && Array.isArray(data.data.list)) {
+          projects = data.data.list;
+        } else {
+          projectStatus.textContent = "Fann ekki project-lista í data.data.list (skoðaðu JSON ef þetta heldur áfram).";
+          projectStatus.classList.add("error");
+          return;
+        }
+
+        if (projects.length === 0) {
+          projectStatus.textContent = "Engin projects fundust.";
+          return;
+        }
+
+        projects.forEach((p, idx) => {
+          const uuid = p.uuid || p.prj_uuid || p.id;
+          const name = p.name || p.project_name || ("Project " + (idx + 1));
+          if (!uuid) return;
+
+          const opt = document.createElement("option");
+          opt.value = uuid;
+          opt.textContent = name + " (" + uuid + ")";
+          projectSelect.appendChild(opt);
+        });
+
+        if (projectSelect.options.length === 0) {
+          projectStatus.textContent = "Fann engin valid UUID í svörunum (laga þarf mapping ef þetta gerist).";
+          projectStatus.classList.add("error");
+          return;
+        }
+
+        projectStatus.textContent = "Projects hlaðin: " + projectSelect.options.length + " stk.";
+        projectStatus.classList.remove("error");
+        taskCard.classList.remove("hidden");
+      } catch (err) {
+        console.error(err);
+        projectStatus.textContent = "Villa við API kall: " + err.message;
+        projectStatus.classList.add("error");
+        outputEl.textContent = "// Villa: " + err.message;
+      }
+    });
+
+    // 2. Sækja flight tasks fyrir valið project
+    btnLoadTasks.addEventListener("click", async () => {
+      taskStatus.textContent = "";
+      taskStatus.classList.remove("error");
+      outputEl.textContent = "// Sæki flight tasks...";
+      btnExportCsv.disabled = true;
+      filteredTasks = [];
+
+      let config;
+      try {
+        config = getConfig();
+      } catch (err) {
+        taskStatus.textContent = err.message;
+        taskStatus.classList.add("error");
+        outputEl.textContent = "// Villa: " + err.message;
+        return;
+      }
+
+      const prjUuid = projectSelect.value;
+      if (!prjUuid) {
+        taskStatus.textContent = "Veldu project fyrst.";
+        taskStatus.classList.add("error");
+        return;
+      }
+
+      const deviceSn = document.getElementById("deviceSn").value.trim();
+      const timeRange = document.getElementById("timeRange").value;
+      const page = document.getElementById("page").value.trim();
+      const pageSize = document.getElementById("pageSize").value.trim();
+      const flightTaskStatus = document.getElementById("flightTaskStatus").value.trim();
+      const listType = document.getElementById("listType").value.trim();
+      const source = document.getElementById("source").value.trim();
+      const mediaUploadType = document.getElementById("mediaUploadType").value.trim();
+
+      const params = new URLSearchParams();
+      params.set("source", source || "0");
+      params.set("media_upload_type", mediaUploadType || "0");
+      if (deviceSn) {
+        params.append("sn[]", deviceSn);
+      }
+
+      // Reikna begin_at og end_at út frá tímabilsvali
+      const { beginAtUnix, endAtUnix } = computeRangeUnix(timeRange);
+      params.set("begin_at", String(beginAtUnix));
+      params.set("end_at", String(endAtUnix));
+
+      params.set("page", page || "1");
+      params.set("page_size", pageSize || "50");
+      if (flightTaskStatus) params.set("flight_task_status", flightTaskStatus);
+      if (listType) params.set("list_type", listType);
+
+      const path = "/task/api/v2/workspaces/" + encodeURIComponent(prjUuid) + "/flight-tasks";
+      const url = config.baseUrl + path + "?" + params.toString();
+
+      try {
+        taskStatus.textContent = "Sending GET " + path;
+        const res = await fetch(url, {
+          method: "GET",
+          headers: {
+            "X-User-Token": FIXED_USER_TOKEN,
+            "X-Language": "en"
+          }
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          taskStatus.textContent = "Villa frá server: " + res.status + " " + res.statusText;
+          taskStatus.classList.add("error");
+          outputEl.textContent = text || ("// HTTP " + res.status);
+          return;
+        }
+
+        const data = await res.json();
+
+        // Ná í listann af tasks (data.data.list)
+        let tasks = [];
+        if (data && data.data && Array.isArray(data.data.list)) {
+          tasks = data.data.list;
+        }
+
+        // Filtera í þau fields sem þú vilt
+        filteredTasks = tasks.map(t => ({
+          ID: t.ID ?? t.id ?? "",
+          take_off_airport_sn: t.take_off_airport_sn ?? "",
+          task_name: t.task_name ?? t.name ?? "",
+          user_id: t.user_id ?? "",
+          prj_uuid: t.prj_uuid ?? "",
+          task_start_time: t.task_start_time ?? t.begin_at ?? "",
+          task_end_time: t.task_end_time ?? t.end_at ?? "",
+          user_name: t.user_name ?? ""
+        }));
+
+        // Sýna bara pagination + filteraðar niðurstöður í output
+        const simplified = {
+          pagination: data.data ? data.data.pagination : null,
+          filtered_list: filteredTasks
+        };
+
+        taskStatus.textContent = "Flight tasks sóttar. Fundust " + filteredTasks.length + " task(s).";
+        taskStatus.classList.remove("error");
+        outputEl.textContent = prettyPrint(simplified);
+
+        // Virkja CSV hnapp ef eitthvað fannst
+        btnExportCsv.disabled = filteredTasks.length === 0;
+      } catch (err) {
+        console.error(err);
+        taskStatus.textContent = "Villa við API kall: " + err.message;
+        taskStatus.classList.add("error");
+        outputEl.textContent = "// Villa: " + err.message;
+      }
+    });
+  </script>
 </body>
 </html>
